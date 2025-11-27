@@ -1,4 +1,6 @@
 import pygame
+import random
+import math
 from pygame.locals import *
 from .AllComponents import *
 from .flappybird_constants import *
@@ -27,8 +29,17 @@ class FlappyBird():
             'day': pygame.transform.scale(pygame.image.load(os.path.join(current_dir, "assets", "sprites","background-day.png")), (SCREEN_WIDHT, SCREEN_HEIGHT)),
             'night': pygame.transform.scale(pygame.image.load(os.path.join(current_dir, "assets", "sprites","background-night.png")), (SCREEN_WIDHT, SCREEN_HEIGHT))
         }
+        # Create portal realm background
+        self.portal_bg = pygame.Surface((SCREEN_WIDHT, SCREEN_HEIGHT))
+        self.portal_bg.fill((20, 0, 40))  # Dark purple
         self.current_bg = 'day'
         self.BACKGROUND = self.backgrounds[self.current_bg]
+        
+        # Portal mode state
+        self.portal_mode = False
+        self.portal_timer = 0
+        self.portal_duration = 300  # frames
+        self.crystal_group = pygame.sprite.Group()
 
         # initialize essential groups to store game objects
         self.pipe_group = pygame.sprite.Group()
@@ -87,6 +98,11 @@ class FlappyBird():
 
         return pipe, pipe_inverted, reward, portal
     
+    def _spawnCrystals(self):
+        for i in range(3):
+            pos = 250 * i + 400
+            crystal = Crystal(pos, random.randint(100, 400))
+            self.crystal_group.add(crystal)
 
     # resets the game to the starting positions for the necessary objects
     def resetGame(self):
@@ -95,9 +111,12 @@ class FlappyBird():
         self.reward_group.empty()
         self.portal_group.empty()
 
-        # reset background
+        # reset background and portal mode
         self.current_bg = 'day'
         self.BACKGROUND = self.backgrounds[self.current_bg]
+        self.portal_mode = False
+        self.portal_timer = 0
+        self.crystal_group.empty()
 
         # spawn new pipes
         self._spawnFirstPipes()
@@ -107,34 +126,58 @@ class FlappyBird():
         self.score = 0
 
 
-    # returns the current game state
+    # returns the current game state (normalized)
     def getGameState(self):
         state_params = []
 
-        # choose the nearest pipes by checking their distance from the bird
-        chosenpipeindex = 0
-        nextpipe_x = self.pipe_group.sprites()[chosenpipeindex].rect[0] + PIPE_WIDHT
-        if (nextpipe_x < self.bird.rect[0]):
-            chosenpipeindex = 2  # if the next pipe is to the left of the bird, choose the right pipe
+        if self.portal_mode and self.crystal_group.sprites():
+            # Portal mode: use crystal positions
+            nearest_crystal = self.crystal_group.sprites()[0]
+            obstacle_x = nearest_crystal.rect[0] - self.bird.rect[0]
+            obstacle_top_y = nearest_crystal.rect[1]
+            obstacle_bottom_y = nearest_crystal.rect[1] + 80  # Crystal height
+            obstacle_middle_y = obstacle_top_y + 40
+        else:
+            # Normal mode: use pipe positions
+            if not self.pipe_group.sprites():
+                # Normalize default state (no pipes ahead)
+                return [0.0, 0.0, 1.0, self.bird.rect[1] / SCREEN_HEIGHT, (self.bird.speed + MAXSPEED) / (2 * MAXSPEED)]
+            
+            chosenpipeindex = 0
+            nextpipe_x = self.pipe_group.sprites()[chosenpipeindex].rect[0] + PIPE_WIDHT
+            if (nextpipe_x < self.bird.rect[0]):
+                chosenpipeindex = 2
 
-        # get the nearest pipes' vertical positions
-        nextpipe_x = self.pipe_group.sprites()[chosenpipeindex].rect[0] - self.bird.rect[0]
-        nextpipe_bottom_y = self.pipe_group.sprites()[chosenpipeindex].rect[1]
-        nextpipe_top_y = nextpipe_bottom_y - PIPE_GAP
+            obstacle_x = self.pipe_group.sprites()[chosenpipeindex].rect[0] - self.bird.rect[0]
+            obstacle_bottom_y = self.pipe_group.sprites()[chosenpipeindex].rect[1]
+            obstacle_top_y = obstacle_bottom_y - PIPE_GAP
+            obstacle_middle_y = obstacle_bottom_y - (PIPE_GAP / 2)
 
-        # gap middle vertical position
-        pipe_middle_y = nextpipe_bottom_y - (PIPE_GAP / 2)
+        # Normalize state values to [0, 1] range for better neural network learning
+        # Normalize obstacle positions relative to screen height
+        obstacle_top_y_norm = obstacle_top_y / SCREEN_HEIGHT
+        obstacle_bottom_y_norm = obstacle_bottom_y / SCREEN_HEIGHT
+        
+        # Normalize horizontal distance to pipe (crucial for timing jumps)
+        # obstacle_x: negative = pipe behind bird, positive = pipe ahead
+        # Normalize to [0, 1] where 0 = pipe far behind, 0.5 = pipe at bird, 1 = pipe far ahead
+        # Use a more meaningful range: pipes typically spawn 400-1050 pixels ahead
+        # Normalize so that 0 = -200 (behind), 1 = 1000 (far ahead)
+        obstacle_x_norm = max(0, min(1, (obstacle_x + 200) / 1200))
+        
+        # Normalize bird's vertical position
+        bird_y_norm = self.bird.rect[1] / SCREEN_HEIGHT
+        
+        # Normalize bird speed (speed ranges from -MAXSPEED to MAXSPEED)
+        bird_speed_norm = (self.bird.speed + MAXSPEED) / (2 * MAXSPEED)
 
-        # bird's vertical position and bird speed
-        bird_y = self.bird.rect[1]
-        bird_speed = self.bird.speed
-
-        # compile the state parameters
-        state_params.append(nextpipe_top_y)
-        state_params.append(nextpipe_bottom_y)
-        state_params.append(pipe_middle_y)
-        state_params.append(bird_y)
-        state_params.append(bird_speed)
+        # compile the state parameters (all normalized)
+        # State: [obstacle_top_y, obstacle_bottom_y, obstacle_x, bird_y, bird_speed]
+        state_params.append(obstacle_top_y_norm)
+        state_params.append(obstacle_bottom_y_norm)
+        state_params.append(obstacle_x_norm)
+        state_params.append(bird_y_norm)
+        state_params.append(bird_speed_norm)
 
         return state_params
     
@@ -172,34 +215,63 @@ class FlappyBird():
             new_ground = Ground(GROUND_WIDHT - 20)
             self.ground_group.add(new_ground)
 
-        # Spawn new pipes if the first pipe is off screen
-        if is_off_screen(self.pipe_group.sprites()[0]):
-            self.pipe_group.remove(self.pipe_group.sprites()[0])
-            self.pipe_group.remove(self.pipe_group.sprites()[0])
-            if self.reward_group.sprites():
-                self.reward_group.remove(self.reward_group.sprites()[0])
+        # Spawn new obstacles based on mode
+        if self.portal_mode:
+            # Spawn crystals in portal mode
+            if self.crystal_group.sprites() and is_off_screen(self.crystal_group.sprites()[0]):
+                self.crystal_group.remove(self.crystal_group.sprites()[0])
+                new_crystal = Crystal(DEFAULT_PIPE_SPAWN_POINT, random.randint(100, 400))
+                self.crystal_group.add(new_crystal)
+        else:
+            # Spawn pipes in normal mode
+            if self.pipe_group.sprites() and is_off_screen(self.pipe_group.sprites()[0]):
+                self.pipe_group.remove(self.pipe_group.sprites()[0])
+                self.pipe_group.remove(self.pipe_group.sprites()[0])
+                if self.reward_group.sprites():
+                    self.reward_group.remove(self.reward_group.sprites()[0])
 
-            pipesAndReward = self._getRandomPipesAndReward(DEFAULT_PIPE_SPAWN_POINT)
+                pipesAndReward = self._getRandomPipesAndReward(DEFAULT_PIPE_SPAWN_POINT)
 
-            self.pipe_group.add(pipesAndReward[0])
-            self.pipe_group.add(pipesAndReward[1])
-            self.reward_group.add(pipesAndReward[2])
-            if pipesAndReward[3]:
-                self.portal_group.add(pipesAndReward[3])
+                self.pipe_group.add(pipesAndReward[0])
+                self.pipe_group.add(pipesAndReward[1])
+                self.reward_group.add(pipesAndReward[2])
+                if pipesAndReward[3]:
+                    self.portal_group.add(pipesAndReward[3])
 
         # Call the update() method for each of the sprite group objects, which updates their positions
-        self.bird_group.update()
+        if self.portal_mode:
+            self.bird.update_portal()
+        else:
+            self.bird_group.update()
         self.ground_group.update()
-        self.pipe_group.update()
+        if self.portal_mode:
+            self.crystal_group.update()
+        else:
+            self.pipe_group.update()
         self.reward_group.update()
         self.portal_group.update()
 
         # draw the background
         self.screen.blit(self.BACKGROUND, (0, 0))
+        
+        # Add portal realm effects
+        if self.portal_mode:
+            # Floating stars effect
+            for i in range(20):
+                x = (i * 50 + self.portal_timer) % SCREEN_WIDHT
+                y = (i * 30 + self.portal_timer // 2) % SCREEN_HEIGHT
+                pygame.draw.circle(self.screen, (255, 255, 255), (int(x), int(y)), 2)
+            # Energy waves
+            for i in range(0, SCREEN_WIDHT, 40):
+                wave_y = SCREEN_HEIGHT // 2 + 50 * math.sin((self.portal_timer + i) * 0.1)
+                pygame.draw.circle(self.screen, (100, 255, 255), (i, int(wave_y)), 10)
 
         # Call the draw() method for each of the sprite group objects and draw them on the screen
         self.bird_group.draw(self.screen)
-        self.pipe_group.draw(self.screen)
+        if self.portal_mode:
+            self.crystal_group.draw(self.screen)
+        else:
+            self.pipe_group.draw(self.screen)
         self.ground_group.draw(self.screen)
         self.reward_group.draw(self.screen)
         self.portal_group.draw(self.screen)
@@ -209,11 +281,11 @@ class FlappyBird():
         self.screen.blit(display_epoch, self.epoch_pos)
         self.screen.blit(self.top_boundary.surf, (0, -4))
 
-        # Check for collisions between the bird and any of the ground, pipes, or top boundary
+        # Check for collisions
+        obstacles = self.crystal_group if self.portal_mode else self.pipe_group
         if (pygame.sprite.groupcollide(self.bird_group, self.ground_group, False, False, pygame.sprite.collide_mask) or
-                pygame.sprite.groupcollide(self.bird_group, self.pipe_group, False, False, pygame.sprite.collide_mask) or
+                pygame.sprite.groupcollide(self.bird_group, obstacles, False, False, pygame.sprite.collide_mask) or
                 pygame.sprite.collide_mask(self.bird, self.top_boundary)):
-            # pygame.mixer.find_channel().play(hit_sound)
             gameOver = True
 
         # Check if the bird has captured a reward
@@ -233,10 +305,25 @@ class FlappyBird():
         # Check if bird enters portal
         portal_reward = False
         if (pygame.sprite.groupcollide(self.bird_group, self.portal_group, False, True, pygame.sprite.collide_mask)):
-            # Switch background
-            self.current_bg = 'night' if self.current_bg == 'day' else 'day'
-            self.BACKGROUND = self.backgrounds[self.current_bg]
+            # Enter portal realm - completely different world
+            self.portal_mode = True
+            self.portal_timer = self.portal_duration
+            self.BACKGROUND = self.portal_bg
+            # Replace pipes with crystals
+            self.pipe_group.empty()
+            self._spawnCrystals()
             portal_reward = True
+        
+        # Handle portal mode
+        if self.portal_mode:
+            self.portal_timer -= 1
+            if self.portal_timer <= 0:
+                self.portal_mode = False
+                self.current_bg = 'day'
+                self.BACKGROUND = self.backgrounds[self.current_bg]
+                # Restore normal pipes
+                self.crystal_group.empty()
+                self._spawnFirstPipes()
 
         # update entire game display
         pygame.display.update()

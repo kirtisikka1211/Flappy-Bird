@@ -1,4 +1,5 @@
 from flappybirdenv.flappybird import FlappyBird
+from flappybirdenv.flappybird_constants import SCREEN_HEIGHT
 from dqn import Dqn
 import numpy as np
 import keras
@@ -36,6 +37,8 @@ class Agent():
         self.currentState = np.zeros((1, 5))
         self.nextState = np.zeros((1, 5))
         self.totReward = 0
+        self.recent_scores = []
+        self.best_score = 0
 
         # Create a new log file and log the parameters
         self.log_file = f"./logs/log{datetime.now().strftime('%m-%d--%H-%M')}.txt"
@@ -71,6 +74,7 @@ class Agent():
             gotReward = False
             self.topCollision = False
             pipes_passed = 0
+            total_pipes_this_episode = 0
 
             # Game loop until game is not over
             gameOver = False
@@ -80,19 +84,12 @@ class Agent():
                 # let the model predict an action and take the action with the highest Q-value
                 action = None
                 if np.random.rand() <= self.epsilon and self.training:
-                    # The bird jumps if action = 1, if action = 0, do nothing. Here, a random number is generated
-                    # between 0 and 10, even though only 0 and 1 are used. If the number is not 1, then the
-                    # bird does not jump. This is done to prevent the bird from jumping almost every frame, and helps
-                    # with the exploration.
-                    action = np.random.randint(0, 10)
-
+                    # Random exploration: 50% chance to jump, 50% chance to do nothing
+                    # This provides better exploration than the previous approach
+                    action = np.random.randint(0, 2)
                 else:
                     qvalues = self.DQN.model(self.currentState)[0]
                     action = np.argmax(qvalues)
-
-                # Only 1 and 0 are used. If the value is higher than 1 (as a result of taking a random action),
-                # then the action is set to 0, otherwise, it is set to 1
-                action = 0 if action != 1 else 1
 
                 # Take the action and get the game state.
                 gameOver, gotReward, portal_reward = self.env.step(action, self.epoch)
@@ -101,13 +98,27 @@ class Agent():
                 # rewards:
                 if gotReward:
                     reward_this_round = 10.  # Higher reward for passing pipes
-                    pipes_passed += 1
+                    total_pipes_this_episode += 1
                 elif portal_reward:
                     reward_this_round = 5.   # Reward for entering portals
                 elif gameOver:
                     reward_this_round = -10. # Higher penalty for dying
                 else:
-                    reward_this_round = 0.1  # Small reward for staying alive
+                    # Base survival reward
+                    reward_this_round = 0.5
+                    
+                    # Bonus reward for being near the pipe gap center (helps guide learning)
+                    state = self.env.getGameState()
+                    if len(state) >= 3:
+                        obstacle_top_y = state[0] * SCREEN_HEIGHT
+                        obstacle_bottom_y = state[1] * SCREEN_HEIGHT
+                        bird_y = state[3] * SCREEN_HEIGHT
+                        gap_center = (obstacle_top_y + obstacle_bottom_y) / 2
+                        distance_to_gap_center = abs(bird_y - gap_center)
+                        
+                        # Small bonus if bird is close to gap center (within 50 pixels)
+                        if distance_to_gap_center < 50:
+                            reward_this_round += 0.2
 
                 # Remeber new experience
                 if self.training:
@@ -117,7 +128,7 @@ class Agent():
                 self.totReward += reward_this_round
 
             # Log the current epoch's information
-            self.log_default(self.epoch, self.totReward, self.epsilon, pipes_passed)
+            self.log_default(self.epoch, self.totReward, self.epsilon, total_pipes_this_episode)
 
             # Train the model on the current state and the expected values of the action taken (Q values). Get these
             # vlaues from the getBatch() function then feed it into the model for training.
@@ -136,6 +147,24 @@ class Agent():
                 if self.ddqn_enable:
                     self.DQN.soft_update_target_dqn(self.tau)
 
+                # Track performance and reset epsilon if needed
+                self.recent_scores.append(total_pipes_this_episode)
+                if len(self.recent_scores) > 100:
+                    self.recent_scores.pop(0)
+                
+                if total_pipes_this_episode > self.best_score:
+                    self.best_score = total_pipes_this_episode
+                
+                # Reset epsilon if performance is consistently poor
+                if len(self.recent_scores) >= 50 and max(self.recent_scores[-50:]) == 0 and self.epsilon < 0.4:
+                    self.epsilon = 0.5
+                    self.recent_scores = []  # Clear history to prevent immediate retrigger
+                    print(f"Resetting epsilon to {self.epsilon} due to poor performance at epoch {self.epoch}")
+                elif len(self.recent_scores) >= 20 and max(self.recent_scores[-20:]) == 0 and self.epsilon <= 0.1:
+                    self.epsilon = 0.3
+                    self.recent_scores = []  # Clear history
+                    print(f"Early epsilon reset to {self.epsilon} at epoch {self.epoch}")
+                
                 # decrease epsilon and reset the total reward for this epoch
                 self.epsilon = max(self.epsilon * self.epsilonDecayRate, self.epsilonMin)
                 self.totReward = 0

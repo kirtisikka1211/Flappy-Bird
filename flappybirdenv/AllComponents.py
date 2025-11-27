@@ -61,6 +61,29 @@ class Bird(pygame.sprite.Sprite):
 
         #UPDATE HEIGHT
         self.rect[1] += self.speed
+    
+    def update_portal(self):
+        # Portal mode: reversed gravity and different physics
+        self.current_image = (self.current_image + 1) % 3
+        self.image = self.images[self.current_image]
+        
+        # Reversed gravity in portal mode
+        self.speed -= GRAVITY * 0.5  # Upward gravity
+        if self.speed < -MAXSPEED:
+            self.speed = -MAXSPEED
+        
+        # Different rotation in portal mode
+        self.current_angle = (self.current_angle + 4) if (self.current_angle < 90) else 90
+        
+        # Add glowing effect in portal mode
+        glow_surface = pygame.Surface(self.image.get_size(), pygame.SRCALPHA)
+        glow_surface.fill((138, 43, 226, 100))
+        self.image.blit(glow_surface, (0, 0), special_flags=pygame.BLEND_ADD)
+        
+        self.image = pygame.transform.rotate(self.image, self.current_angle)
+        
+        #UPDATE HEIGHT
+        self.rect[1] += self.speed
 
     def bump(self):
         self.current_angle = 30
@@ -75,6 +98,7 @@ class Bird(pygame.sprite.Sprite):
     def begin(self):
         self.rect[0] = SCREEN_WIDHT / 6
         self.rect[1] = SCREEN_HEIGHT / 2.5
+        self.speed = SPEED  # Reset speed to initial value
         self.current_image = (self.current_image + 1) % 3
         self.current_angle = 0
         self.image = self.images[self.current_image]
@@ -166,19 +190,32 @@ class Reward(pygame.sprite.Sprite):
 class Portal(pygame.sprite.Sprite):
     def __init__(self, xpos, ypos):
         super().__init__()
-        self.image = pygame.Surface((40, 60), pygame.SRCALPHA)
-        pygame.draw.ellipse(self.image, (138, 43, 226), (5, 10, 30, 40))
-        pygame.draw.ellipse(self.image, (75, 0, 130), (10, 15, 20, 30))
-        pygame.draw.ellipse(self.image, (0, 0, 0), (15, 20, 10, 20))
+        self.base_image = pygame.Surface((40, 60), pygame.SRCALPHA)
+        pygame.draw.ellipse(self.base_image, (138, 43, 226), (5, 10, 30, 40))
+        pygame.draw.ellipse(self.base_image, (75, 0, 130), (10, 15, 20, 30))
+        pygame.draw.ellipse(self.base_image, (0, 0, 0), (15, 20, 10, 20))
         
+        self.image = self.base_image.copy()
         self.rect = self.image.get_rect()
         self.rect[0] = xpos
         self.rect[1] = ypos
         
         self.mask = pygame.mask.from_surface(self.image)
+        self.animation_frame = 0
     
     def update(self):
         self.rect[0] -= GAME_SPEED
+        
+        # Animate portal with pulsing effect
+        self.animation_frame += 1
+        pulse = abs(pygame.math.Vector2(0, 1).rotate(self.animation_frame * 5).y)
+        
+        # Create pulsing glow effect
+        self.image = self.base_image.copy()
+        glow_surface = pygame.Surface((40, 60), pygame.SRCALPHA)
+        glow_color = (138 + int(50 * pulse), 43, 226, int(100 * pulse))
+        pygame.draw.ellipse(glow_surface, glow_color, (0, 5, 40, 50))
+        self.image.blit(glow_surface, (0, 0), special_flags=pygame.BLEND_ADD)
 
 
 class Ground(pygame.sprite.Sprite):
@@ -196,6 +233,23 @@ class Ground(pygame.sprite.Sprite):
     def update(self):
         self.rect[0] -= GAME_SPEED
 
+
+class Crystal(pygame.sprite.Sprite):
+    def __init__(self, xpos, ypos):
+        super().__init__()
+        self.image = pygame.Surface((60, 80), pygame.SRCALPHA)
+        # Draw crystal shape
+        points = [(30, 10), (50, 30), (40, 70), (20, 70), (10, 30)]
+        pygame.draw.polygon(self.image, (0, 255, 255), points)
+        pygame.draw.polygon(self.image, (100, 200, 255), points, 3)
+        
+        self.rect = self.image.get_rect()
+        self.rect[0] = xpos
+        self.rect[1] = ypos
+        self.mask = pygame.mask.from_surface(self.image)
+        
+    def update(self):
+        self.rect[0] -= GAME_SPEED
 
 def is_off_screen(sprite):
     return sprite.rect[0] < -(sprite.rect[2])
