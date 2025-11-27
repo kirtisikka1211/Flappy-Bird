@@ -76,23 +76,13 @@ class Agent():
             gameOver = False
             while not gameOver:
                 # Taking an action using the epsilon greedy policy
-                # if random number is less than epsilon, take a random action, otherwise,
-                # let the model predict an action and take the action with the highest Q-value
                 action = None
                 if np.random.rand() <= self.epsilon and self.training:
-                    # The bird jumps if action = 1, if action = 0, do nothing. Here, a random number is generated
-                    # between 0 and 10, even though only 0 and 1 are used. If the number is not 1, then the
-                    # bird does not jump. This is done to prevent the bird from jumping almost every frame, and helps
-                    # with the exploration.
-                    action = np.random.randint(0, 10)
-
+                    # Bias toward not jumping (80% no jump, 20% jump) for better exploration
+                    action = 1 if np.random.rand() < 0.2 else 0
                 else:
                     qvalues = self.DQN.model(self.currentState)[0]
                     action = np.argmax(qvalues)
-
-                # Only 1 and 0 are used. If the value is higher than 1 (as a result of taking a random action),
-                # then the action is set to 0, otherwise, it is set to 1
-                action = 0 if action != 1 else 1
 
                 # Take the action and get the game state.
                 gameOver, gotReward, portal_reward, crystal_reward = self.env.step(action, self.epoch)
@@ -100,31 +90,47 @@ class Agent():
 
                 # rewards:
                 if gotReward:
-                    reward_this_round = 10.  # Higher reward for passing pipes
+                    reward_this_round = 100.  # High reward for passing pipes
+                    pipes_passed += 1
+                elif crystal_reward:
+                    reward_this_round = 75.   # High reward for risky crystal collection
                     pipes_passed += 1
                 elif portal_reward:
-                    reward_this_round = 5.   # Reward for entering portals
+                    reward_this_round = 50.   # Reward for entering dangerous portal
                 elif gameOver:
-                    reward_this_round = -10. # Higher penalty for dying
+                    if hasattr(self.env, 'portal_mode') and self.env.portal_mode:
+                        reward_this_round = -10.  # Much less penalty for spike death
+                    else:
+                        reward_this_round = -10.  # Reduced penalty for normal death
                 else:
-                    reward_this_round = 0.1  # Small reward for staying alive
+                    if hasattr(self.env, 'portal_mode') and self.env.portal_mode:
+                        reward_this_round = 0.5   # Higher survival in portal
+                    else:
+                        reward_this_round = 1.0   # Higher survival reward
 
-                # Remeber new experience
+                # Remember new experience with prioritization
                 if self.training:
-                    self.DQN.remember([np.copy(self.currentState), action, reward_this_round, np.copy(self.nextState)], gameOver)
+                    # Store successful experiences multiple times to prevent forgetting
+                    if gotReward or crystal_reward or portal_reward:
+                        for _ in range(3):  # Store 3 times for important experiences
+                            self.DQN.remember([np.copy(self.currentState), action, reward_this_round, np.copy(self.nextState)], gameOver)
+                    else:
+                        self.DQN.remember([np.copy(self.currentState), action, reward_this_round, np.copy(self.nextState)], gameOver)
 
                 self.currentState = np.copy(self.nextState)
                 self.totReward += reward_this_round
 
             # Log the current epoch's information
             self.log_default(self.epoch, self.totReward, self.epsilon, pipes_passed)
+            
+            # Debug: Print first few epochs
+            if self.epoch <= 5:
+                print(f"Epoch {self.epoch}: Total Reward = {self.totReward:.1f}, Pipes = {pipes_passed}, Epsilon = {self.epsilon:.3f}")
 
-            # Train the model on the current state and the expected values of the action taken (Q values). Get these
-            # vlaues from the getBatch() function then feed it into the model for training.
-            if self.training:
+            # Train less frequently to prevent catastrophic forgetting
+            if self.training and self.epoch % 2 == 0:  # Train every 2nd epoch
                 inputs, targets = self.DQN.getBatch(self.batchSize, True)
                 if inputs is not None and targets is not None:
-                    # self.DQN.model.train_on_batch(inputs, targets)
                     self.DQN.train_batch(inputs, targets)
 
                 # Save the weights after 100 epochs

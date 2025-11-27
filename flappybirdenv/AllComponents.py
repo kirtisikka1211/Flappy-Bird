@@ -8,6 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 wing_path = os.path.join(current_dir,"assets", "audio", "wing.wav")
 hit_path = os.path.join(current_dir,"assets", "audio", "hit.wav")
 point_path = os.path.join(current_dir,"assets", "audio", "point.wav")
+die_path = os.path.join(current_dir,"assets", "audio", "die.ogg")
 font_path = os.path.join(current_dir,"assets", "flappy-bird-font.ttf")
 bird_upflap_path = os.path.join(current_dir,"assets", "sprites", "yellowbird-upflap.png")
 bird_midflap_path = os.path.join(current_dir,"assets", "sprites", "yellowbird-midflap.png")
@@ -25,6 +26,7 @@ font2 = pygame.font.Font(font_path, 28)
 wing_sound = pygame.mixer.Sound(wing_path)
 hit_sound = pygame.mixer.Sound(hit_path)
 point_sound = pygame.mixer.Sound(point_path)
+die_sound = pygame.mixer.Sound(die_path)
 
 class Bird(pygame.sprite.Sprite):
 
@@ -77,6 +79,7 @@ class Bird(pygame.sprite.Sprite):
         self.rect[1] = SCREEN_HEIGHT / 2.5
         self.current_image = (self.current_image + 1) % 3
         self.current_angle = 0
+        self.speed = 0  # Start with zero speed
         self.image = self.images[self.current_image]
         self.image = pygame.transform.rotate(self.image, self.current_angle)
 
@@ -184,19 +187,27 @@ class Portal(pygame.sprite.Sprite):
 class Crystal(pygame.sprite.Sprite):
     def __init__(self, xpos, ypos):
         super().__init__()
-        self.image = pygame.Surface((60, 80), pygame.SRCALPHA)
+        self.image = pygame.Surface((40, 50), pygame.SRCALPHA)  # Smaller
         # Draw crystal shape
-        points = [(30, 10), (50, 30), (40, 70), (20, 70), (10, 30)]
+        points = [(20, 5), (35, 20), (30, 45), (10, 45), (5, 20)]
         pygame.draw.polygon(self.image, (0, 255, 255), points)
-        pygame.draw.polygon(self.image, (100, 200, 255), points, 3)
+        pygame.draw.polygon(self.image, (100, 200, 255), points, 2)
         
         self.rect = self.image.get_rect()
         self.rect[0] = xpos
         self.rect[1] = ypos
         self.mask = pygame.mask.from_surface(self.image)
         
+        self.base_y = ypos
+        self.move_counter = random.randint(0, 360)
+        
     def update(self):
-        self.rect[0] -= GAME_SPEED
+        self.rect[0] -= GAME_SPEED * 2  # Much faster in portal
+        
+        # Vertical oscillation
+        self.move_counter += 3
+        import math
+        self.rect[1] = self.base_y + 25 * math.sin(math.radians(self.move_counter))
 
 
 class Ground(pygame.sprite.Sprite):
@@ -213,6 +224,24 @@ class Ground(pygame.sprite.Sprite):
 
     def update(self):
         self.rect[0] -= GAME_SPEED
+
+
+class Spike(pygame.sprite.Sprite):
+    def __init__(self, xpos, ypos):
+        super().__init__()
+        self.image = pygame.Surface((30, 40), pygame.SRCALPHA)
+        # Draw spike shape
+        points = [(15, 0), (25, 35), (5, 35)]
+        pygame.draw.polygon(self.image, (255, 50, 50), points)
+        pygame.draw.polygon(self.image, (200, 0, 0), points, 2)
+        
+        self.rect = self.image.get_rect()
+        self.rect[0] = xpos
+        self.rect[1] = ypos
+        self.mask = pygame.mask.from_surface(self.image)
+        
+    def update(self):
+        self.rect[0] -= GAME_SPEED * 2.5
 
 
 def is_off_screen(sprite):
