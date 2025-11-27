@@ -7,7 +7,7 @@ from .flappybird_constants import *
 
 
 class FlappyBird():
-    def __init__(self):
+    def __init__(self, portal_count=3):
         #initialize pygame resources
         pygame.init()
         pygame.mixer.init()
@@ -45,6 +45,8 @@ class FlappyBird():
         self.portal_mode = False
         self.portal_timer = 0
         self.portal_duration = 120  # Shorter time limit
+        self.portal_count = portal_count
+        self.portals_created = 0
 
         # initialize bird and add it to the bird group
         self.bird = Bird()
@@ -64,6 +66,33 @@ class FlappyBird():
         self.score = 0
 
         self.clock = pygame.time.Clock()
+    
+    def show_get_ready(self):
+        """Show get ready screen"""
+        self.screen.blit(self.BACKGROUND, (0, 0))
+        
+        # Draw get ready text
+        get_ready_text = font.render("GET READY", True, (255, 255, 255))
+        text_rect = get_ready_text.get_rect(center=(SCREEN_WIDHT//2, SCREEN_HEIGHT//2 - 50))
+        self.screen.blit(get_ready_text, text_rect)
+        
+        # Draw instructions
+        instruction_text = font2.render("Press SPACE to start", True, (255, 255, 255))
+        inst_rect = instruction_text.get_rect(center=(SCREEN_WIDHT//2, SCREEN_HEIGHT//2 + 20))
+        self.screen.blit(instruction_text, inst_rect)
+        
+        pygame.display.update()
+        
+        # Wait for space key
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    exit()
+                elif event.type == KEYDOWN:
+                    if event.key == K_SPACE:
+                        waiting = False
 
     # Spawn the first 3 pipes and rewards at predefined locations
     def _spawnFirstPipes(self):
@@ -81,7 +110,9 @@ class FlappyBird():
     def _getRandomPipesAndReward(self, xpos):
         # chooses a random pipe height 
         size = random.randint(100, 350)
-        has_portal = random.randint(1, 10) <= 3  # 30% chance
+        has_portal = self.portals_created < self.portal_count and random.randint(1, 10) <= 3
+        if has_portal:
+            self.portals_created += 1
 
         # Create pipes and a reward
         pipe = Pipe(False, xpos, size, has_portal)
@@ -123,6 +154,7 @@ class FlappyBird():
         self.BACKGROUND = self.backgrounds[self.current_bg]
         self.portal_mode = False
         self.portal_timer = 0
+        self.portals_created = 0
 
         # spawn new pipes
         self._spawnFirstPipes()
