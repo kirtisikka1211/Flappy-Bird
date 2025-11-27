@@ -181,6 +181,24 @@ class Portal(pygame.sprite.Sprite):
         self.rect[0] -= GAME_SPEED
 
 
+class Crystal(pygame.sprite.Sprite):
+    def __init__(self, xpos, ypos):
+        super().__init__()
+        self.image = pygame.Surface((60, 80), pygame.SRCALPHA)
+        # Draw crystal shape
+        points = [(30, 10), (50, 30), (40, 70), (20, 70), (10, 30)]
+        pygame.draw.polygon(self.image, (0, 255, 255), points)
+        pygame.draw.polygon(self.image, (100, 200, 255), points, 3)
+        
+        self.rect = self.image.get_rect()
+        self.rect[0] = xpos
+        self.rect[1] = ypos
+        self.mask = pygame.mask.from_surface(self.image)
+        
+    def update(self):
+        self.rect[0] -= GAME_SPEED
+
+
 class Ground(pygame.sprite.Sprite):
     def __init__(self, xpos):
         super().__init__()

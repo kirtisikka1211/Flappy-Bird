@@ -95,7 +95,7 @@ class Agent():
                 action = 0 if action != 1 else 1
 
                 # Take the action and get the game state.
-                gameOver, gotReward, portal_reward = self.env.step(action, self.epoch)
+                gameOver, gotReward, portal_reward, crystal_reward = self.env.step(action, self.epoch)
                 self.nextState[0] = self.env.getGameState()
 
                 # rewards:
