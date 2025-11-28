@@ -18,56 +18,39 @@ class Dqn():
         self.optimizer = keras.optimizers.AdamW(learning_rate=lr, amsgrad=True)
         self.update_target_dqn()
 
-    # Getting batches of inputs and targets
     def getBatch(self, batchSize, ddqn=False):
         if len(self.memory) < batchSize:
             return None, None
 
-        # Randomly sample batch indices
         indices = np.random.randint(0, len(self.memory), size=batchSize)
-        # batch = sample(self.memory, batchSize)
-        # transitions, gameOvers = zip(*batch)
-        #
-        # currentState, actions, rewards, nextStates = zip(*transitions)
 
-        # Extract data and convert to tensors
+        #converting data into tensors
         inputs = tf.convert_to_tensor([tf.squeeze(self.memory[idx][0][0]) for idx in indices], dtype=tf.float32)
         actions = tf.convert_to_tensor([self.memory[idx][0][1] for idx in indices], dtype=tf.int32)
         rewards = tf.convert_to_tensor([self.memory[idx][0][2] for idx in indices], dtype=tf.float32)
         nextStates = tf.convert_to_tensor([tf.squeeze(self.memory[idx][0][3]) for idx in indices], dtype=tf.float32)
         gameOvers = tf.convert_to_tensor([self.memory[idx][1] for idx in indices], dtype=tf.float32)
 
-        # # Reshape inputs and nextStates according to model's input shape
-        # expected_shape = self.model.input_shape[1:]
-        # inputs = tf.reshape(inputs, (batchSize,) + expected_shape)
-        # nextStates = tf.reshape(nextStates, (batchSize,) + expected_shape)
 
         # Batch predictions for inputs and nextStates
         currentQValues = self.model(inputs, training=False)
         nextQValues = self.model(nextStates, training=False)
 
-        # if it's a DDQN model, use the best action according to the revised Bellman equation
+        #if it's a DDQN model, use the best action according to the revised Bellman equation
         if ddqn:
             bestActions = tf.argmax(nextQValues, axis=1, output_type=tf.int32)
             nextQTargetValues = self.target_dqn(nextStates, training=False)
             targetQValues = rewards + (1 - gameOvers) * self.discount * tf.gather_nd(
                 nextQTargetValues, tf.stack([tf.cast(tf.range(batchSize), dtype=tf.int32), bestActions], axis=1)
             )
-        # Otherwise, use the traditional equation
+        
         else:
             targetQValues = rewards + (1 - gameOvers) * self.discount * tf.reduce_max(nextQValues, axis=1)
-
-        # Create targets tensor based on current Q-values and update specific actions
         targets = tf.identity(currentQValues)
         indices = tf.stack([tf.range(batchSize, dtype=tf.int32), actions], axis=1)
         targets = tf.tensor_scatter_nd_update(targets, indices, targetQValues)
 
         return inputs, targets
-
-
-    # @tf.function
-    # def train_batch(self, inputs, targets):
-    #     self.model.train_on_batch(inputs.nmpy(), targets.numpy())
 
     @tf.function
     def train_batch(self, inputs, targets):
@@ -77,29 +60,27 @@ class Dqn():
         gradients = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
 
-    # remember new experiences and remove the oldest if the memory is full
+    #remove the oldest memory when it is full
     def remember(self, transition, gameOver):
         self.memory.append([transition, gameOver])
         if len(self.memory) > self.maxMemory:
-            # del self.memory[0]
             self.memory.pop(0)
 
-    # Update target DQM weights to match main DQN (hard update)
+    #doing hard update
     def update_target_dqn(self):
         self.target_dqn.set_weights(self.model.get_weights())
 
-    # Soft update target DQN weights
+    #soft updating target network's weights
     def soft_update_target_dqn(self, tau: float):
         main_network_weights = self.model.get_weights()
         target_network_weights = self.target_dqn.get_weights()
 
-        # Apply the soft update formula
         new_weights = []
         for target_weight, main_weight in zip(target_network_weights, main_network_weights):
             updated_weight = tau * main_weight + (1 - tau) * target_weight
             new_weights.append(updated_weight)
 
-        # Set the new weights to the target model
+        #updating target network's weights
         self.target_dqn.set_weights(new_weights)
 
 

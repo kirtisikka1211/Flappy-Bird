@@ -12,12 +12,10 @@ class Brain():
         self.model.add(keras.layers.Dense(units=hidden_nodes, activation='relu'))
         self.model.add(keras.layers.Dense(units=self.numOutputs))
 
-    # save model weights
+    #saving model weights
     def save_weights(self, fname):
         self.model.save_weights(fname)
 
-    #load model weightss
+    #loading model weightss
     def load_weights(self, fname):
         self.model.load_weights(fname)
-
-# print(brain.model.summary())

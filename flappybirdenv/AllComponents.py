@@ -2,7 +2,7 @@ import pygame, random
 from .flappybird_constants import *
 import os
 
-#Paths
+#paths for assets
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 wing_path = os.path.join(current_dir,"assets", "audio", "wing.wav")
@@ -17,6 +17,7 @@ pipe_green_path = os.path.join(current_dir,"assets", "sprites", "pipe-green.png"
 pipe_red_path = os.path.join(current_dir,"assets", "sprites", "pipe-red.png")
 base_path = os.path.join(current_dir,"assets", "sprites", "base.png")
 
+#initializing pygame resources and assets
 pygame.init()
 pygame.mixer.init()
 pygame.font.init()
@@ -28,6 +29,7 @@ hit_sound = pygame.mixer.Sound(hit_path)
 point_sound = pygame.mixer.Sound(point_path)
 die_sound = pygame.mixer.Sound(die_path)
 
+#defining a class for the bird's sprite and define its parameters
 class Bird(pygame.sprite.Sprite):
 
     def __init__(self):
@@ -37,6 +39,7 @@ class Bird(pygame.sprite.Sprite):
                         pygame.image.load(bird_midflap_path).convert_alpha(),
                         pygame.image.load(bird_downflap_path).convert_alpha()]
 
+        #define speed, change the image according to actions being taken and set the image and its angle
         self.speed = SPEED
 
         self.current_image = 0
@@ -49,6 +52,7 @@ class Bird(pygame.sprite.Sprite):
 
         self.current_angle = 0
 
+    #to update its gravity, speed and angle
     def update(self):
         self.current_image = (self.current_image + 1) % 3
         self.image = self.images[self.current_image]
@@ -59,15 +63,9 @@ class Bird(pygame.sprite.Sprite):
         self.current_angle = (self.current_angle - 4) if (self.current_angle > -90) else -90
 
         self.image = pygame.transform.rotate(self.image, self.current_angle)
-        # self.rect = self.image.get_rect(center=self.rect.center)
-
-        #UPDATE HEIGHT
-        self.rect[1] += self.speed
+        self.rect[1] += self.speed  #to update height
 
         def update_config(self, pipe_prob=None, pipe_spacing=None, num_portals=None, crystal_prob=None, max_steps=None):
-            """
-            Update game configuration dynamically.
-            """
             if pipe_prob is not None:
                 self.pipe_prob = pipe_prob
             if pipe_spacing is not None:
@@ -82,10 +80,9 @@ class Bird(pygame.sprite.Sprite):
     def bump(self):
         self.current_angle = 30
         self.image = pygame.transform.rotate(self.image, self.current_angle)
-        # self.rect = self.image.get_rect(center=self.rect.center)
         self.speed = -SPEED
 
-        # make sure bird doesn't fly above the boundaries of the screen
+        #set boundaries for the bird to stay inside
         if self.rect[1] < 0 :
             self.rect[1] = 0
 
@@ -94,17 +91,18 @@ class Bird(pygame.sprite.Sprite):
         self.rect[1] = SCREEN_HEIGHT / 2.5
         self.current_image = (self.current_image + 1) % 3
         self.current_angle = 0
-        self.speed = 0  # Start with zero speed
+        self.speed = 0   #start with zero speed
         self.image = self.images[self.current_image]
         self.image = pygame.transform.rotate(self.image, self.current_angle)
 
 
 
+#to define pipe's parameters
 class Pipe(pygame.sprite.Sprite):
 
     def __init__(self, inverted, xpos, ysize, has_portal=False):
         super().__init__()
-
+        #if it has portal, then take red pipe, or else, output green pipe
         pipe_path = pipe_red_path if has_portal else pipe_green_path
         self.image = pygame.image.load(pipe_path).convert_alpha()
         self.image = pygame.transform.scale(self.image, (PIPE_WIDHT, PIPE_HEIGHT))
@@ -122,23 +120,11 @@ class Pipe(pygame.sprite.Sprite):
 
         self.mask = pygame.mask.from_surface(self.image)
 
-
+    #to update with the game's speed, go back.
     def update(self):
         self.rect[0] -= GAME_SPEED
 
-
-# class Score():
-#     def __init__(self):
-#         self.score = 0
-#         self.pos = (SCREEN_WIDHT // 2 - font.get_height() // 2, SCREEN_HEIGHT//20)
-
-
-#     def update(self, new_val):
-#         self.score = new_val
-#         score_disp = font.render(str(new_val), True, (255, 255, 255))
-#         return score_disp
-    
-
+#setting the boundaries
 class TopBoundary(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -150,16 +136,13 @@ class TopBoundary(pygame.sprite.Sprite):
 
         self.mask = pygame.mask.from_surface(self.surf)
 
-        # self.rect[0] = 0
-        # self.rect[1] = 0
-
-
+#setting the rewards
 class Reward(pygame.sprite.Sprite):
     def __init__(self, xpos):
         super().__init__()
         self.surf = pygame.Surface((3, SCREEN_HEIGHT - GROUND_HEIGHT))
         self.surf.fill((255, 255, 255))
-        self.surf.set_alpha(0)  # Makes it invisible
+        self.surf.set_alpha(0)
           
         self.rect = self.surf.get_rect()
         self.rect[0] = xpos
@@ -180,7 +163,7 @@ class Reward(pygame.sprite.Sprite):
     def reset(self):
         self.rect[0] = SCREEN_WIDHT * 2
 
-
+#defining portal's parameters
 class Portal(pygame.sprite.Sprite):
     def __init__(self, xpos, ypos):
         super().__init__()
@@ -198,12 +181,12 @@ class Portal(pygame.sprite.Sprite):
     def update(self):
         self.rect[0] -= GAME_SPEED
 
-
+#defining crystal's parameters
 class Crystal(pygame.sprite.Sprite):
     def __init__(self, xpos, ypos):
         super().__init__()
-        self.image = pygame.Surface((40, 50), pygame.SRCALPHA)  # Smaller
-        # Draw crystal shape
+        self.image = pygame.Surface((40, 50), pygame.SRCALPHA)   
+        #drawing crystal manually
         points = [(20, 5), (35, 20), (30, 45), (10, 45), (5, 20)]
         pygame.draw.polygon(self.image, (0, 255, 255), points)
         pygame.draw.polygon(self.image, (100, 200, 255), points, 2)
@@ -217,14 +200,14 @@ class Crystal(pygame.sprite.Sprite):
         self.move_counter = random.randint(0, 360)
         
     def update(self):
-        self.rect[0] -= GAME_SPEED * 2  # Much faster in portal
+        self.rect[0] -= GAME_SPEED * 2  #game speed must be double in portal realm
         
-        # Vertical oscillation
         self.move_counter += 3
         import math
         self.rect[1] = self.base_y + 25 * math.sin(math.radians(self.move_counter))
 
 
+#setting ground sprite's parameters
 class Ground(pygame.sprite.Sprite):
     def __init__(self, xpos):
         super().__init__()
@@ -240,7 +223,7 @@ class Ground(pygame.sprite.Sprite):
     def update(self):
         self.rect[0] -= GAME_SPEED
 
-
+#set spikes in portal realm's parameters
 class Spike(pygame.sprite.Sprite):
     def __init__(self, xpos, ypos):
         super().__init__()
@@ -263,7 +246,6 @@ def is_off_screen(sprite):
     return sprite.rect[0] < -(sprite.rect[2])
 
 
-# will be implemented in flappybird.py
 def _getRandomPipesAndReward(self, xpos):
     size = random.randint(100, 350)
     has_portal = random.random() < getattr(self, 'pipe_prob', 0.3)  # default 30%

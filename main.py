@@ -10,7 +10,7 @@ keras.utils.disable_interactive_logging()
 
 class Agent:
     def __init__(self):
-        # Load hyperparameters
+        #loading the hyperparameters
         with open("hyperparameters.yml", "r") as f:
             params = yaml.safe_load(f)
 
@@ -26,30 +26,17 @@ class Agent:
         self.tau = params["tau"]
         self.training = params["train"]
 
-        # Initialize DQN
+        #initializing dqn
         self.DQN = Dqn(hidden_nodes=self.hidden_nodes, lr=self.learningRate,
                        maxMemory=self.maxMemory, discount=self.gamma)
         self.weights_file_name = "dqntrain.weights.h5"
         if not self.training:
             self.DQN.load_weights(self.weights_file_name)
 
-        # Default game config
-        self.game_config = {
-            "pipe_prob": 0.9,
-            "pipe_spacing": 150,
-            "num_portals": 1,
-            "crystal_prob": 0.2,
-            "max_steps_per_epoch": 500
-        }
+        #setting the default parameters of the game and rewards
+        self.game_config = { "pipe_prob": 0.9,"pipe_spacing": 150, "num_portals": 1, "crystal_prob": 0.2, "max_steps_per_epoch": 500}
 
-        # Default reward configuration
-        self.reward_config = {
-            "pass_pipe": 100.0,
-            "crystal": 75.0,
-            "portal": 50.0,
-            "death": -10.0,
-            "survival": 1.0
-        }
+        self.reward_config = {"pass_pipe": 100.0,"crystal": 75.0, "portal": 50.0, "death": -10.0, "survival": 1.0}
 
 
         self.epoch = 0
@@ -60,17 +47,14 @@ class Agent:
         self.log_file = f"./logs/log{datetime.now().strftime('%m-%d--%H-%M')}.txt"
         self.log_parameters()
 
-        # Ask user for input at the start
+        #to ask user's input
         self.get_user_config()
 
         self.env = FlappyBird()
         self.env.update_config(
             pipe_prob=self.game_config["pipe_prob"],
-            pipe_spacing=self.game_config["pipe_spacing"],
-            num_portals=self.game_config["num_portals"],
-            crystal_prob=self.game_config["crystal_prob"],
-            max_steps=self.game_config["max_steps_per_epoch"]
-        )
+            pipe_spacing=self.game_config["pipe_spacing"], num_portals=self.game_config["num_portals"],
+            crystal_prob=self.game_config["crystal_prob"], max_steps=self.game_config["max_steps_per_epoch"])
 
 
 
@@ -79,6 +63,7 @@ class Agent:
             log.write(f"{datetime.now()}: epoch: {epoch} | totalReward = {totReward} "
                       f"| epsilon = {epsilon:.3f} | pipes passed = {score}\n")
 
+    #to store the logs of rewards, epsilon and other important things
     def log_parameters(self):
         with open("hyperparameters.yml", "r") as f:
             params = yaml.safe_load(f)
@@ -94,8 +79,9 @@ class Agent:
                 log.write(f"{k}: {v}\n")
             log.write("\n")
 
+    #to get the user's input for some parameters.
     def get_user_config(self):
-        print("\n--- Customize Game Parameters (Press Enter to keep default) ---")
+        print("Customize Game Parameters")
         for key in self.game_config:
             current_value = self.game_config[key]
             try:
@@ -108,7 +94,7 @@ class Agent:
             except ValueError:
                 print(f"Invalid input for {key}, keeping current value {current_value}.")
 
-        print("\n--- Customize Rewards (Press Enter to keep default) ---")
+        print("Customize Rewards")
         for key in self.reward_config:
             current_value = self.reward_config[key]
             try:
@@ -118,6 +104,7 @@ class Agent:
             except ValueError:
                 print(f"Invalid input for {key}, keeping current value {current_value}.")
 
+    #training the flappy
     def train(self, max_epochs=100):
         while self.epoch < max_epochs:
             self.epoch += 1
@@ -132,7 +119,7 @@ class Agent:
 
             while not gameOver and step_count < self.game_config["max_steps_per_epoch"]:
                 step_count += 1
-                # Epsilon-greedy action selection
+                #epsilon for e-greedy algorithm
                 if np.random.rand() <= self.epsilon and self.training:
                     action = 1 if np.random.rand() < 0.2 else 0
                 else:
@@ -142,20 +129,20 @@ class Agent:
                 gameOver, gotReward, portal_reward, crystal_reward = self.env.step(action, self.epoch)
                 self.nextState[0] = self.env.getGameState()
 
-                # Reward logic
+                #defining rewards
                 if gotReward:
-                    reward_this_round = self.reward_config["pass_pipe"]
+                    reward_this_round = self.reward_config["pass_pipe"] #reward for going through pipe gap successfully
                     pipes_passed += 1
                 elif crystal_reward:
-                    reward_this_round = self.reward_config["crystal"]
+                    reward_this_round = self.reward_config["crystal"] #for collecting crystals
                 elif portal_reward:
-                    reward_this_round = self.reward_config["portal"]
+                    reward_this_round = self.reward_config["portal"] #for passing through portal
                 elif gameOver:
-                    reward_this_round = self.reward_config["death"]
+                    reward_this_round = self.reward_config["death"]  #for when you die
                 else:
-                    reward_this_round = self.reward_config["survival"]
+                    reward_this_round = self.reward_config["survival"]     #for staying alive
 
-                # Remember experience
+                #calling the memory function to remember experience
                 if self.training:
                     if gotReward or crystal_reward or portal_reward:
                         for _ in range(3):
@@ -169,7 +156,7 @@ class Agent:
             self.log_default(self.epoch, self.totReward, self.epsilon, pipes_passed)
             print(f"Epoch {self.epoch} finished: Total Reward = {self.totReward:.1f}, Pipes = {pipes_passed}, Epsilon = {self.epsilon:.3f}")
 
-            # Train DQN every 2 epochs
+            #training the DQN every 2 epochs
             if self.training and self.epoch % 2 == 0:
                 inputs, targets = self.DQN.getBatch(self.batchSize, True)
                 if inputs is not None and targets is not None:

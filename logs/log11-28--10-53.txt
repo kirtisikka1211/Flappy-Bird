@@ -1,0 +1,47 @@
+Hyperparameters:
+learningRate: 0.0003
+maxMemory: 50000
+gamma: 0.99
+batchSize: 64
+epsilon: 0.95
+epsilonDecayRate: 0.999
+epsilonMin: 0.05
+hidden_nodes: 128
+ddqn_enable: True
+tau: 0.005
+train: False
+
+Game Config:
+pipe_prob: 0.9
+pipe_spacing: 150
+num_portals: 1
+crystal_prob: 0.2
+max_steps_per_epoch: 500
+
+Reward Config:
+pass_pipe: 100.0
+crystal: 75.0
+portal: 50.0
+death: -10.0
+survival: 1.0
+
+2025-11-28 10:54:03.721416: epoch: 1 | totalReward = 13.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:04.509070: epoch: 2 | totalReward = 26.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:05.303576: epoch: 3 | totalReward = 39.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:06.096335: epoch: 4 | totalReward = 52.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:06.888864: epoch: 5 | totalReward = 65.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:07.680421: epoch: 6 | totalReward = 78.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:08.473488: epoch: 7 | totalReward = 91.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:09.263214: epoch: 8 | totalReward = 104.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:10.054405: epoch: 9 | totalReward = 117.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:10.846500: epoch: 10 | totalReward = 130.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:11.639436: epoch: 11 | totalReward = 143.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:12.433606: epoch: 12 | totalReward = 156.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:13.223126: epoch: 13 | totalReward = 169.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:14.016339: epoch: 14 | totalReward = 182.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:14.806060: epoch: 15 | totalReward = 195.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:15.599325: epoch: 16 | totalReward = 208.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:16.393663: epoch: 17 | totalReward = 221.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:17.288951: epoch: 18 | totalReward = 234.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:18.078794: epoch: 19 | totalReward = 247.0 | epsilon = 0.950 | pipes passed = 0
+2025-11-28 10:54:18.872597: epoch: 20 | totalReward = 260.0 | epsilon = 0.950 | pipes passed = 0
