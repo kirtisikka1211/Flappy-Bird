@@ -1,0 +1,60 @@
+learningRate: 0.0003
+maxMemory: 50000
+gamma: 0.99
+batchSize: 64
+epsilon: 0.95
+epsilonDecayRate: 0.999
+epsilonMin: 0.05
+hidden_nodes: 128
+ddqn_enable: True
+tau: 0.005
+train: False
+
+2025-11-28 10:28:02.773248: epoch: 1 | totalReward = 13.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:03.555500: epoch: 2 | totalReward = 26.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:04.353906: epoch: 3 | totalReward = 39.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:05.145033: epoch: 4 | totalReward = 52.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:05.939146: epoch: 5 | totalReward = 65.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:06.724373: epoch: 6 | totalReward = 78.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:07.519397: epoch: 7 | totalReward = 91.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:08.309843: epoch: 8 | totalReward = 104.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:09.100103: epoch: 9 | totalReward = 117.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:09.897622: epoch: 10 | totalReward = 130.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:10.693877: epoch: 11 | totalReward = 143.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:11.476700: epoch: 12 | totalReward = 156.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:12.268408: epoch: 13 | totalReward = 169.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:13.069732: epoch: 14 | totalReward = 182.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:13.855520: epoch: 15 | totalReward = 195.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:14.653691: epoch: 16 | totalReward = 208.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:15.445636: epoch: 17 | totalReward = 221.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:16.229173: epoch: 18 | totalReward = 234.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:17.021286: epoch: 19 | totalReward = 247.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:17.820380: epoch: 20 | totalReward = 260.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:18.615588: epoch: 21 | totalReward = 273.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:19.403937: epoch: 22 | totalReward = 286.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:20.189522: epoch: 23 | totalReward = 299.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:20.984513: epoch: 24 | totalReward = 312.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:21.772183: epoch: 25 | totalReward = 325.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:22.566032: epoch: 26 | totalReward = 338.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:23.357857: epoch: 27 | totalReward = 351.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:24.149024: epoch: 28 | totalReward = 364.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:24.949270: epoch: 29 | totalReward = 377.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:25.737156: epoch: 30 | totalReward = 390.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:26.527507: epoch: 31 | totalReward = 403.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:27.319606: epoch: 32 | totalReward = 416.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:28.108363: epoch: 33 | totalReward = 429.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:28.909284: epoch: 34 | totalReward = 442.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:29.693162: epoch: 35 | totalReward = 455.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:30.490185: epoch: 36 | totalReward = 468.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:31.282339: epoch: 37 | totalReward = 481.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:32.079482: epoch: 38 | totalReward = 494.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:32.865948: epoch: 39 | totalReward = 507.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:33.653378: epoch: 40 | totalReward = 520.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:34.455571: epoch: 41 | totalReward = 533.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:35.240491: epoch: 42 | totalReward = 546.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:36.033930: epoch: 43 | totalReward = 559.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:36.829555: epoch: 44 | totalReward = 572.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:37.622888: epoch: 45 | totalReward = 585.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:38.405143: epoch: 46 | totalReward = 598.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:39.199743: epoch: 47 | totalReward = 611.0 | epsilon = 0.95 | pipes passed = 0
+2025-11-28 10:28:39.990088: epoch: 48 | totalReward = 624.0 | epsilon = 0.95 | pipes passed = 0

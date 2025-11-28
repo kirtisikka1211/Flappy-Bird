@@ -65,6 +65,23 @@ class FlappyBird():
 
         self.clock = pygame.time.Clock()
 
+
+    def update_config(self, pipe_prob=None, pipe_spacing=None, num_portals=None, crystal_prob=None, max_steps=None):
+        """
+        Update game configuration dynamically.
+        """
+        if pipe_prob is not None:
+            self.pipe_prob = pipe_prob
+        if pipe_spacing is not None:
+            self.pipe_spacing = pipe_spacing
+        if num_portals is not None:
+            self.num_portals = num_portals
+        if crystal_prob is not None:
+            self.crystal_prob = crystal_prob
+        if max_steps is not None:
+            self.max_steps = max_steps
+
+
     # Spawn the first 3 pipes and rewards at predefined locations
     def _spawnFirstPipes(self):
         for i in range (3):  # spawn 3 pipes
@@ -79,21 +96,21 @@ class FlappyBird():
 
     # Generate random pipe and reward at a predefined position
     def _getRandomPipesAndReward(self, xpos):
-        # chooses a random pipe height 
         size = random.randint(100, 350)
-        has_portal = random.randint(1, 10) <= 3  # 30% chance
+        # Use pipe_prob from config, default 30%
+        has_portal = random.random() < getattr(self, 'pipe_prob', 0.3)
 
-        # Create pipes and a reward
         pipe = Pipe(False, xpos, size, has_portal)
         pipe_inverted = Pipe(True, xpos, SCREEN_HEIGHT - size - PIPE_GAP, has_portal)
         reward = Reward(xpos + PIPE_WIDHT/2)
-        
+
         portal = None
         if has_portal:
             portal_y = SCREEN_HEIGHT - size - PIPE_GAP//2 - 30
             portal = Portal(xpos + PIPE_WIDHT//2 - 20, portal_y)
 
         return pipe, pipe_inverted, reward, portal
+
     
 
     def _spawnCrystals(self):

@@ -64,6 +64,21 @@ class Bird(pygame.sprite.Sprite):
         #UPDATE HEIGHT
         self.rect[1] += self.speed
 
+        def update_config(self, pipe_prob=None, pipe_spacing=None, num_portals=None, crystal_prob=None, max_steps=None):
+            """
+            Update game configuration dynamically.
+            """
+            if pipe_prob is not None:
+                self.pipe_prob = pipe_prob
+            if pipe_spacing is not None:
+                self.pipe_spacing = pipe_spacing
+            if num_portals is not None:
+                self.num_portals = num_portals
+            if crystal_prob is not None:
+                self.crystal_prob = crystal_prob
+            if max_steps is not None:
+                self.max_steps = max_steps
+
     def bump(self):
         self.current_angle = 30
         self.image = pygame.transform.rotate(self.image, self.current_angle)
@@ -249,20 +264,21 @@ def is_off_screen(sprite):
 
 
 # will be implemented in flappybird.py
-def get_random_pipes(xpos):
+def _getRandomPipesAndReward(self, xpos):
     size = random.randint(100, 350)
-    has_portal = random.random() < 0.3  # 30% chance for portal
-
+    has_portal = random.random() < getattr(self, 'pipe_prob', 0.3)  # default 30%
+    
     pipe = Pipe(False, xpos, size, has_portal)
     pipe_inverted = Pipe(True, xpos, SCREEN_HEIGHT - size - PIPE_GAP, has_portal)
-    reward = Reward(xpos + PIPE_WIDHT/2)
+    reward = Reward(xpos + PIPE_WIDHT / 2)
     
     portal = None
     if has_portal:
-        portal_y = SCREEN_HEIGHT - size - PIPE_GAP//2 - 30
-        portal = Portal(xpos + PIPE_WIDHT//2 - 20, portal_y)
-
+        portal_y = SCREEN_HEIGHT - size - PIPE_GAP // 2 - 30
+        portal = Portal(xpos + PIPE_WIDHT // 2 - 20, portal_y)
+    
     return pipe, pipe_inverted, reward, portal
+
 
 
     

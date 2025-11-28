@@ -4,115 +4,161 @@ import numpy as np
 import keras
 import yaml
 from datetime import datetime
+
 keras.utils.disable_interactive_logging()
 
 
-class Agent():
+class Agent:
     def __init__(self):
-        parameters = None
-        with open("hyperparameters.yml", "r") as parameters_file:
-            parameters = yaml.safe_load(parameters_file)
+        # Load hyperparameters
+        with open("hyperparameters.yml", "r") as f:
+            params = yaml.safe_load(f)
 
-        self.learningRate = parameters["learningRate"]
-        self.maxMemory = parameters["maxMemory"]
-        self.gamma = parameters["gamma"]
-        self.batchSize = parameters["batchSize"]
-        self.epsilon = parameters["epsilon"]
-        self.epsilonDecayRate = parameters["epsilonDecayRate"]
-        self.epsilonMin = parameters["epsilonMin"]
-        self.hidden_nodes = parameters["hidden_nodes"]
-        self.ddqn_enable = parameters["ddqn_enable"]
-        self.tau = parameters["tau"]
-        self.training = parameters["train"]
+        self.learningRate = params["learningRate"]
+        self.maxMemory = params["maxMemory"]
+        self.gamma = params["gamma"]
+        self.batchSize = params["batchSize"]
+        self.epsilon = params["epsilon"]
+        self.epsilonDecayRate = params["epsilonDecayRate"]
+        self.epsilonMin = params["epsilonMin"]
+        self.hidden_nodes = params["hidden_nodes"]
+        self.ddqn_enable = params["ddqn_enable"]
+        self.tau = params["tau"]
+        self.training = params["train"]
 
-        # Initialize environment, and the experience replay memory
-        self.DQN = Dqn(hidden_nodes=self.hidden_nodes, lr=self.learningRate, maxMemory=self.maxMemory, discount=self.gamma)
+        # Initialize DQN
+        self.DQN = Dqn(hidden_nodes=self.hidden_nodes, lr=self.learningRate,
+                       maxMemory=self.maxMemory, discount=self.gamma)
         self.weights_file_name = "dqntrain.weights.h5"
         if not self.training:
             self.DQN.load_weights(self.weights_file_name)
 
-        # main variables
+        # Default game config
+        self.game_config = {
+            "pipe_prob": 0.9,
+            "pipe_spacing": 150,
+            "num_portals": 1,
+            "crystal_prob": 0.2,
+            "max_steps_per_epoch": 500
+        }
+
+        # Default reward configuration
+        self.reward_config = {
+            "pass_pipe": 100.0,
+            "crystal": 75.0,
+            "portal": 50.0,
+            "death": -10.0,
+            "survival": 1.0
+        }
+
+
         self.epoch = 0
         self.currentState = np.zeros((1, 5))
         self.nextState = np.zeros((1, 5))
         self.totReward = 0
 
-        # Create a new log file and log the parameters
         self.log_file = f"./logs/log{datetime.now().strftime('%m-%d--%H-%M')}.txt"
-
         self.log_parameters()
 
-        # Create game environment
+        # Ask user for input at the start
+        self.get_user_config()
+
         self.env = FlappyBird()
+        self.env.update_config(
+            pipe_prob=self.game_config["pipe_prob"],
+            pipe_spacing=self.game_config["pipe_spacing"],
+            num_portals=self.game_config["num_portals"],
+            crystal_prob=self.game_config["crystal_prob"],
+            max_steps=self.game_config["max_steps_per_epoch"]
+        )
 
 
-    def log_default(self, epoch, totReward, epsilon, score, mode="+a"):
-        with open(self.log_file, mode) as log:
-            log.write(
-                f"{datetime.now()}: epoch: {epoch} | totalReward = {totReward} | epsilon = {epsilon} | pipes passed = {score}\n")
 
-    def log_parameters(self, mode="a"):
-        with open("hyperparameters.yml", "r") as parameters_file:
-            parameters = yaml.safe_load(parameters_file)
+    def log_default(self, epoch, totReward, epsilon, score):
+        with open(self.log_file, "a") as log:
+            log.write(f"{datetime.now()}: epoch: {epoch} | totalReward = {totReward} "
+                      f"| epsilon = {epsilon:.3f} | pipes passed = {score}\n")
 
-        with open(self.log_file, mode) as f:
-            for key, value in parameters.items():
-                f.write(f"{key}: {value}\n")
+    def log_parameters(self):
+        with open("hyperparameters.yml", "r") as f:
+            params = yaml.safe_load(f)
+        with open(self.log_file, "a") as log:
+            log.write("Hyperparameters:\n")
+            for k, v in params.items():
+                log.write(f"{k}: {v}\n")
+            log.write("\nGame Config:\n")
+            for k, v in self.game_config.items():
+                log.write(f"{k}: {v}\n")
+            log.write("\nReward Config:\n")
+            for k, v in self.reward_config.items():
+                log.write(f"{k}: {v}\n")
+            log.write("\n")
 
-            f.write("\n")
+    def get_user_config(self):
+        print("\n--- Customize Game Parameters (Press Enter to keep default) ---")
+        for key in self.game_config:
+            current_value = self.game_config[key]
+            try:
+                user_input = input(f"{key} (current={current_value}): ")
+                if user_input.strip() != "":
+                    if isinstance(current_value, int):
+                        self.game_config[key] = int(user_input)
+                    elif isinstance(current_value, float):
+                        self.game_config[key] = float(user_input)
+            except ValueError:
+                print(f"Invalid input for {key}, keeping current value {current_value}.")
 
-    def train(self):
-        while self.epoch < 50000:
+        print("\n--- Customize Rewards (Press Enter to keep default) ---")
+        for key in self.reward_config:
+            current_value = self.reward_config[key]
+            try:
+                user_input = input(f"{key} reward (current={current_value}): ")
+                if user_input.strip() != "":
+                    self.reward_config[key] = float(user_input)
+            except ValueError:
+                print(f"Invalid input for {key}, keeping current value {current_value}.")
+
+    def train(self, max_epochs=100):
+        while self.epoch < max_epochs:
             self.epoch += 1
-
-            # get current game state:
             self.env.resetGame()
             self.currentState[0] = self.env.getGameState()
             gotReward = False
-            self.topCollision = False
             pipes_passed = 0
-
-            # Game loop until game is not over
             gameOver = False
-            while not gameOver:
-                # Taking an action using the epsilon greedy policy
-                action = None
+            step_count = 0
+
+            print(f"\nEpoch {self.epoch} starting...")
+
+            while not gameOver and step_count < self.game_config["max_steps_per_epoch"]:
+                step_count += 1
+                # Epsilon-greedy action selection
                 if np.random.rand() <= self.epsilon and self.training:
-                    # Bias toward not jumping (80% no jump, 20% jump) for better exploration
                     action = 1 if np.random.rand() < 0.2 else 0
                 else:
                     qvalues = self.DQN.model(self.currentState)[0]
                     action = np.argmax(qvalues)
 
-                # Take the action and get the game state.
                 gameOver, gotReward, portal_reward, crystal_reward = self.env.step(action, self.epoch)
                 self.nextState[0] = self.env.getGameState()
 
-                # rewards:
+                # Reward logic
                 if gotReward:
-                    reward_this_round = 100.  # High reward for passing pipes
+                    reward_this_round = self.reward_config["pass_pipe"]
                     pipes_passed += 1
                 elif crystal_reward:
-                    reward_this_round = 75.   # High reward for risky crystal collection
-                    pipes_passed += 1
+                    reward_this_round = self.reward_config["crystal"]
                 elif portal_reward:
-                    reward_this_round = 50.   # Reward for entering dangerous portal
+                    reward_this_round = self.reward_config["portal"]
                 elif gameOver:
-                    if hasattr(self.env, 'portal_mode') and self.env.portal_mode:
-                        reward_this_round = -10.  # Much less penalty for spike death
-                    else:
-                        reward_this_round = -10.  # Reduced penalty for normal death
+                    reward_this_round = self.reward_config["death"]
                 else:
-                    if hasattr(self.env, 'portal_mode') and self.env.portal_mode:
-                        reward_this_round = 0.5   # Higher survival in portal
-                    else:
-                        reward_this_round = 1.0   # Higher survival reward
+                    reward_this_round = self.reward_config["survival"]
 
-                # Remember new experience with prioritization
+                # Remember experience
                 if self.training:
-                    # Store successful experiences multiple times to prevent forgetting
                     if gotReward or crystal_reward or portal_reward:
-                        for _ in range(3):  # Store 3 times for important experiences
+                        for _ in range(3):
                             self.DQN.remember([np.copy(self.currentState), action, reward_this_round, np.copy(self.nextState)], gameOver)
                     else:
                         self.DQN.remember([np.copy(self.currentState), action, reward_this_round, np.copy(self.nextState)], gameOver)
@@ -120,33 +166,22 @@ class Agent():
                 self.currentState = np.copy(self.nextState)
                 self.totReward += reward_this_round
 
-            # Log the current epoch's information
             self.log_default(self.epoch, self.totReward, self.epsilon, pipes_passed)
-            
-            # Debug: Print first few epochs
-            if self.epoch <= 5:
-                print(f"Epoch {self.epoch}: Total Reward = {self.totReward:.1f}, Pipes = {pipes_passed}, Epsilon = {self.epsilon:.3f}")
+            print(f"Epoch {self.epoch} finished: Total Reward = {self.totReward:.1f}, Pipes = {pipes_passed}, Epsilon = {self.epsilon:.3f}")
 
-            # Train less frequently to prevent catastrophic forgetting
-            if self.training and self.epoch % 2 == 0:  # Train every 2nd epoch
+            # Train DQN every 2 epochs
+            if self.training and self.epoch % 2 == 0:
                 inputs, targets = self.DQN.getBatch(self.batchSize, True)
                 if inputs is not None and targets is not None:
                     self.DQN.train_batch(inputs, targets)
-
-                # Save the weights after 100 epochs
                 if self.epoch % 100 == 0:
                     self.DQN.save_weights(self.weights_file_name)
-
-                # If it's a DDQN model, update the target network weights using the soft update.
-                # Can be updated using the hard update in update_target_dqn() function in dqn.py for experimentation.
                 if self.ddqn_enable:
                     self.DQN.soft_update_target_dqn(self.tau)
-
-                # decrease epsilon and reset the total reward for this epoch
                 self.epsilon = max(self.epsilon * self.epsilonDecayRate, self.epsilonMin)
                 self.totReward = 0
 
 
 if __name__ == "__main__":
     agent = Agent()
-    agent.train()
+    agent.train(max_epochs=50)
